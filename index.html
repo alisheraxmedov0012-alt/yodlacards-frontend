@@ -2,271 +2,170 @@
 <html lang="uz">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>YodlaCards AI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YodlaCards AI Pro</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .glass { background: rgba(15,23,42,0.85); backdrop-filter: blur(20px); border: 1px solid rgba(34,211,238,0.2); }
-        .flashcard { transition: transform 0.9s cubic-bezier(0.23,1,0.32,1); }
-        .flashcard.flipped { transform: rotateY(180deg); }
-    </style>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/flashcards.css">
+    <link rel="stylesheet" href="css/quiz.css">
+    <link rel="stylesheet" href="css/ai.css">
+    <link rel="stylesheet" href="css/responsive.css">
 </head>
-<body class="bg-slate-950 text-white min-h-screen">
+<body>
 
-    <header class="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-xl border-b border-cyan-400/20 px-5 py-4">
-        <div class="flex justify-between items-center">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-3xl flex items-center justify-center text-3xl font-black">Y</div>
-                <div>
-                    <p id="username" class="text-xl font-bold">Alisher</p>
-                    <p class="text-xs text-slate-400"><i class="fa-solid fa-fire"></i> <span id="streak">0</span> kun</p>
-                </div>
+    <div id="app" class="app-container">
+        
+        <header class="main-header">
+            <div class="logo-area">
+                <div class="logo-icon">🔮</div>
+                <h1>YodlaCards Pro</h1>
             </div>
-            <div class="text-cyan-400">Level <span id="level" class="text-3xl font-bold">1</span></div>
-        </div>
-    </header>
+            <div class="profile-area">
+                <img src="assets/avatar.png" alt="Avatar" id="user-avatar" class="avatar">
+                <span id="username">Alisher Axmedov</span>
+            </div>
+        </header>
 
-    <main class="pb-24">
-
-        <!-- 1. YODLASH -->
-        <div id="tab-flash" class="tab-content active p-5">
-            <div id="set-list" class="space-y-4"></div>
-            <div id="count-select" class="hidden max-w-md mx-auto glass rounded-3xl p-6"></div>
-            <div id="flash-area" class="hidden max-w-md mx-auto">
-                <div onclick="flipCard()" id="flashcard" class="flashcard relative h-[460px] cursor-pointer">
-                    <div class="face front absolute inset-0 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-3xl p-8 flex flex-col justify-center items-center">
-                        <div class="px-6 py-2 bg-white/10 rounded-full text-sm">ENGLISH</div>
-                        <h1 id="eng-word" class="text-5xl font-bold mt-10 text-center"></h1>
-                        <p id="ai-info" class="mt-8 text-center text-slate-200"></p>
+        <main class="content-area">
+            
+            <section id="flashcards-section" class="app-section active">
+                
+                <div id="sets-view">
+                    <div class="section-header">
+                        <h2>📚 Mening To'plamlarim</h2>
+                        <button id="btn-create-set" class="btn btn-primary">➕ Yangi Set</button>
                     </div>
-                    <div class="face back absolute inset-0 bg-gradient-to-br from-emerald-600 to-teal-600 rounded-3xl p-8 flex flex-col justify-center items-center rotate-y-180">
-                        <div class="px-6 py-2 bg-white/10 rounded-full text-sm">O‘ZBEKCHA</div>
-                        <h1 id="uz-word" class="text-5xl font-bold mt-12 text-white text-center"></h1>
+                    <div id="sets-list" class="sets-grid-container"></div>
+                </div>
+
+                <div id="add-set-view" class="hidden-view">
+                    <h2>🆕 Yangi To'plam Yaratish</h2>
+                    <div class="form-group" id="set-name-group">
+                        <label>To'plam (Set) nomi:</label>
+                        <input type="text" id="input-set-name" placeholder="Masalan: Toefl Verbs, Essential 4000...">
+                        <button id="btn-confirm-set-name" class="btn btn-primary glass-btn">Kiritish va Davom etish ➡️</button>
                     </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4 mt-8">
-                    <button onclick="cardAction('dont')" class="glass py-6 rounded-3xl text-red-400 font-semibold">❌ Bilmadim</button>
-                    <button onclick="cardAction('know')" class="glass py-6 rounded-3xl text-emerald-400 font-semibold">✅ Bildim</button>
-                </div>
-            </div>
-        </div>
 
-        <!-- 2. SO‘Z QO‘SHISH -->
-        <div id="tab-add" class="tab-content hidden p-5">
-            <div class="max-w-md mx-auto glass rounded-3xl p-8">
-                <h2 class="text-3xl font-bold text-center mb-2">➕ So‘z qo‘shish</h2>
-                <p id="current-set-display" class="text-cyan-400 text-center mb-6 font-medium"></p>
-
-                <input id="set-name" class="w-full bg-slate-800 border border-slate-600 rounded-2xl px-6 py-5 mb-6" placeholder="Set nomi">
-                <input id="eng-input" class="w-full bg-slate-800 border border-slate-600 rounded-2xl px-6 py-5 mb-4" placeholder="Inglizcha so‘z">
-                <input id="uz-input" class="w-full bg-slate-800 border border-slate-600 rounded-2xl px-6 py-5 mb-8" placeholder="O‘zbekcha tarjimasi">
-
-                <div class="flex gap-3">
-                    <button onclick="addWordAndContinue()" class="flex-1 bg-slate-700 py-6 rounded-3xl font-semibold">➕ Yana qo‘shish</button>
-                    <button onclick="finishAddingWords()" class="flex-1 bg-gradient-to-r from-cyan-400 to-blue-500 text-black py-6 rounded-3xl font-bold">✅ Tugatish</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 3. TEST / QUIZ -->
-        <div id="tab-quiz" class="tab-content hidden p-5">
-            <div class="max-w-md mx-auto glass rounded-3xl p-8">
-                <h2 class="text-2xl font-bold text-center mb-6">Kunlik Test</h2>
-                <p class="quiz-question text-center text-slate-400">Tarjimani toping</p>
-                <div class="quiz-word text-3xl font-bold text-center my-8" id="quiz-eng">Word</div>
-                <div id="quiz-options" class="space-y-3"></div>
-            </div>
-        </div>
-
-        <!-- 4. AI TEACHER -->
-        <div id="tab-ai" class="tab-content hidden p-5">
-            <div class="max-w-md mx-auto">
-                <div id="chat-messages" class="h-[55vh] overflow-y-auto space-y-4 pr-2"></div>
-                <div class="glass p-4 rounded-3xl flex gap-3 mt-4">
-                    <input id="ai-input" class="flex-1 bg-slate-800 rounded-2xl px-6 py-4" placeholder="Inglizcha yozing...">
-                    <button onclick="sendAiMessage()" class="bg-cyan-500 text-black px-8 rounded-2xl font-bold">Yuborish</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- 5. STATISTIKA -->
-        <div id="tab-stats" class="tab-content hidden p-5">
-            <div class="max-w-md mx-auto glass rounded-3xl p-8 space-y-8">
-                <h2 class="text-3xl font-bold text-center">📊 Statistika</h2>
-                <div class="grid grid-cols-2 gap-4">
-                    <div class="glass rounded-2xl p-6 text-center">
-                        <p class="text-slate-400">Daraja</p>
-                        <p id="stat-level" class="text-6xl font-bold text-cyan-400">1</p>
-                    </div>
-                    <div class="glass rounded-2xl p-6 text-center">
-                        <p class="text-slate-400">XP</p>
-                        <p id="stat-xp" class="text-6xl font-bold">1240</p>
-                    </div>
-                </div>
-                <div class="space-y-5 text-lg">
-                    <div class="flex justify-between"><span>Tangalar</span><span id="stat-coins" class="font-bold">245 🪙</span></div>
-                    <div class="flex justify-between"><span>Streak</span><span id="stat-streak" class="font-bold text-orange-400">7 kun 🔥</span></div>
-                    <div class="flex justify-between"><span>Jami so‘zlar</span><span id="stat-words" class="font-bold">68 ta</span></div>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <nav class="fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-2xl border-t border-slate-700 flex text-xs">
-        <div onclick="switchTab(0)" class="flex-1 py-4 flex flex-col items-center nav-item active"><i class="fa-solid fa-layer-group text-2xl"></i><span>Yodlash</span></div>
-        <div onclick="switchTab(1)" class="flex-1 py-4 flex flex-col items-center nav-item"><i class="fa-solid fa-plus text-2xl"></i><span>Qo‘shish</span></div>
-        <div onclick="switchTab(2)" class="flex-1 py-4 flex flex-col items-center nav-item"><i class="fa-solid fa-brain text-2xl"></i><span>Test</span></div>
-        <div onclick="switchTab(3)" class="flex-1 py-4 flex flex-col items-center nav-item"><i class="fa-solid fa-robot text-2xl"></i><span>AI</span></div>
-        <div onclick="switchTab(4)" class="flex-1 py-4 flex flex-col items-center nav-item"><i class="fa-solid fa-chart-column text-2xl"></i><span>Stat</span></div>
-    </nav>
-
-    <script>
-        const API_BASE_URL = "https://yodlacards-ai-bot-production.up.railway.app";
-        let userId = Telegram.WebApp.initDataUnsafe?.user?.id || 12345;
-        let currentFlashcards = [];
-        let currentIndex = 0;
-        let currentSetName = "";
-
-        // YODLASH
-        async function loadSets() {
-            const container = document.getElementById('set-list');
-            try {
-                const res = await fetch(`\( {API_BASE_URL}/api/user/ \){userId}/sets`);
-                const sets = await res.json();
-                container.innerHTML = sets.map(s => `
-                    <div onclick="selectSet('${s.set_name}', ${s.count})" class="glass rounded-3xl p-6 flex justify-between items-center cursor-pointer">
-                        <div>
-                            <p class="font-semibold text-xl">${s.set_name}</p>
-                            <p class="text-slate-400">${s.count} ta so‘z</p>
+                    <div id="word-inputs-group" class="hidden-view">
+                        <p class="set-indicator">To'plam: <strong id="current-creating-set-name"></strong> (<span id="added-words-count">0</span> ta so'z)</p>
+                        <div class="form-group">
+                            <label>Inglizcha so'z:</label>
+                            <input type="text" id="input-eng" placeholder="Apple">
                         </div>
-                        <i class="fa-solid fa-chevron-right text-cyan-400"></i>
+                        <div class="form-group">
+                            <label>O'zbekcha tarjimasi:</label>
+                            <input type="text" id="input-uzb" placeholder="Olma">
+                        </div>
+                        <div class="form-controls">
+                            <button id="btn-add-more-word" class="btn btn-secondary">➕ Yana qo'shish</button>
+                            <button id="btn-finish-set" class="btn btn-success">💾 Saqlash</button>
+                        </div>
                     </div>
-                `).join('');
-            } catch(e) {
-                container.innerHTML = `<p class="text-center text-slate-400 py-10">Hozircha set yo'q. Qo'shish bo'limidan boshlang.</p>`;
-            }
-        }
-
-        function selectSet(setName, count) {
-            document.getElementById('set-list').classList.add('hidden');
-            const div = document.getElementById('count-select');
-            div.classList.remove('hidden');
-            div.innerHTML = `
-                <h3 class="text-2xl font-bold text-center mb-6">Qancha so‘z yodlamoqchisiz?</h3>
-                <div class="grid grid-cols-2 gap-3">
-                    <button onclick="startFlashcards('${setName}', 10)" class="glass py-6 rounded-2xl">10 ta</button>
-                    <button onclick="startFlashcards('${setName}', 20)" class="glass py-6 rounded-2xl">20 ta</button>
-                    <button onclick="startFlashcards('${setName}', 50)" class="glass py-6 rounded-2xl">50 ta</button>
-                    <button onclick="startFlashcards('${setName}', ${count})" class="glass py-6 rounded-2xl">Hammasi</button>
                 </div>
-            `;
-        }
 
-        async function startFlashcards(setName, limit) {
-            document.getElementById('count-select').classList.add('hidden');
-            document.getElementById('flash-area').classList.remove('hidden');
-            try {
-                const res = await fetch(`\( {API_BASE_URL}/api/user/ \){userId}/cards?set=\( {setName}&limit= \){limit}`);
-                currentFlashcards = await res.json();
-                currentIndex = 0;
-                showCurrentCard();
-            } catch(e) { console.error(e); }
-        }
+                <div id="play-set-view" class="hidden-view">
+                    <div class="play-header">
+                        <button id="btn-back-to-sets" class="btn-back">⬅️ Chiqish</button>
+                        <div class="mode-badge">🎴 Flashcard</div>
+                        <span id="card-progress-indicator">1 / 10</span>
+                    </div>
+                    <div class="card-wrapper">
+                        <div id="flashcard" class="card">
+                            <div class="card-inner">
+                                <div class="card-front" id="card-en">Word</div>
+                                <div class="card-back">
+                                    <div id="card-uz">Tarjima</div>
+                                    <div id="card-ai">AI Ta'rif</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-controls">
+                        <button id="btn-wrong" class="btn btn-danger">Bilmadim ❌</button>
+                        <button id="btn-correct" class="btn btn-success">Bildim ✅</button>
+                    </div>
+                </div>
 
-        function showCurrentCard() {
-            const c = currentFlashcards[currentIndex];
-            document.getElementById('eng-word').textContent = c.english;
-            document.getElementById('ai-info').textContent = c.ai_info || "";
-            document.getElementById('uz-word').textContent = c.uzbek;
-        }
+                <div id="play-quiz-view" class="hidden-view">
+                    <div class="play-header">
+                        <button id="btn-quiz-back-to-sets" class="btn-back">⬅️ Chiqish</button>
+                        <div class="mode-badge quiz-badge">📝 Set Quiz</div>
+                        <span id="quiz-progress-indicator">1 / 10</span>
+                    </div>
+                    <div class="quiz-engine-container">
+                        <div id="set-quiz-question" class="question-box">Question?</div>
+                        <div id="set-quiz-options" class="options-vertical-grid"></div>
+                    </div>
+                </div>
 
-        function flipCard() { document.getElementById('flashcard').classList.toggle('flipped'); }
+                <div id="result-set-view" class="hidden-view">
+                    <div class="result-box">
+                        <div class="result-icon">🏆</div>
+                        <h2>To'plam Yakunlandi!</h2>
+                        <div class="result-stats">
+                            <div class="res-item">Foiz: <strong id="res-percent">0%</strong></div>
+                            <div class="res-item">To'g'ri: <span id="res-know" class="txt-success">0</span></div>
+                            <div class="res-item">Xato: <span id="res-dont" class="txt-danger">0</span></div>
+                        </div>
+                        <div class="result-actions">
+                            <button id="btn-retry-wrong" class="btn btn-warning">🔄 Faqat xatolarni takrorlash</button>
+                            <button id="btn-retry-all" class="btn btn-primary">🔁 Hammasini qayta boshlash</button>
+                            <button id="btn-go-home-sets" class="btn btn-secondary">📚 Setlar ro'yxatiga qaytish</button>
+                        </div>
+                    </div>
+                </div>
 
-        async function cardAction(action) {
-            const c = currentFlashcards[currentIndex];
-            await fetch(`${API_BASE_URL}/api/flashcard/action`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({user_id: userId, card_id: c.id, action})
-            });
-            currentIndex = (currentIndex + 1) % currentFlashcards.length;
-            showCurrentCard();
-        }
+            </section>
 
-        // SO‘Z QO‘SHISH
-        async function addWordAndContinue() {
-            const set = document.getElementById('set-name').value.trim() || currentSetName || "Umumiy";
-            const eng = document.getElementById('eng-input').value.trim();
-            const uz = document.getElementById('uz-input').value.trim();
+            <section id="quiz-section" class="app-section">
+                <h2>🌗 Kunlik Global Test</h2>
+                <div class="quiz-container">
+                    <div id="quiz-question" class="question">Savol yuklanmoqda...</div>
+                    <div id="quiz-options" class="options-grid"></div>
+                </div>
+            </section>
 
-            if (!eng || !uz) return alert("So'zlarni to'ldiring!");
+            <section id="ai-section" class="app-section">
+                <h2>🤖 AI Teacher Chat</h2>
+                <div class="chat-container">
+                    <div id="chat-messages" class="messages-box"></div>
+                    <div class="chat-input-area">
+                        <input type="text" id="ai-input" placeholder="Xabarni yozing...">
+                        <button id="btn-send-ai" class="btn">🚀</button>
+                    </div>
+                </div>
+            </section>
 
-            currentSetName = set;
-            document.getElementById('current-set-display').textContent = `Set: ${set}`;
+            <section id="stats-section" class="app-section">
+                <h2>📊 Foydalanuvchi Profili</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">🏅 Daraja: <strong id="stat-level">1</strong></div>
+                    <div class="stat-card">✨ Jami XP: <strong id="stat-xp">0</strong></div>
+                    <div class="stat-card">🪙 Tangalar: <strong id="stat-coins">0</strong></div>
+                    <div class="stat-card">🔥 Streak: <strong id="stat-streak">0</strong> kun</div>
+                    <div class="stat-card">📚 So'zlar: <strong id="stat-words">0</strong></div>
+                </div>
+            </section>
 
-            try {
-                await fetch(`\( {API_BASE_URL}/api/user/ \){userId}/add_word`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({set_name: set, english: eng, uzbek: uz})
-                });
-                alert(`✅ "${eng}" qo'shildi!`);
-                document.getElementById('eng-input').value = '';
-                document.getElementById('uz-input').value = '';
-            } catch(e) { alert("Xatolik yuz berdi"); }
-        }
+        </main>
 
-        function finishAddingWords() {
-            alert(`✅ "${currentSetName}" seti saqlandi!`);
-            switchTab(0);
-            loadSets();
-        }
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-target="flashcards-section">🎴 To'plamlar</button>
+            <button class="nav-btn" data-target="quiz-section">📝 Kunlik Test</button>
+            <button class="nav-btn" data-target="ai-section">🧠 AI Chat</button>
+            <button class="nav-btn" data-target="stats-section">👤 Profil</button>
+        </nav>
 
-        // QUIZ
-        let currentQuizCorrect = "";
-        function loadQuizData() {
-            // Dummy test
-            const container = document.getElementById('quiz-options');
-            container.innerHTML = "<p class='text-center'>Test funksiyasi tez orada to'liq ishlaydi</p>";
-        }
+    </div>
 
-        // AI
-        async function sendAiMessage() {
-            const input = document.getElementById('ai-input');
-            const text = input.value.trim();
-            if (!text) return;
-            const box = document.getElementById('chat-messages');
-            box.innerHTML += `<div class="text-right"><div class="inline-block bg-cyan-600 px-5 py-3 rounded-3xl rounded-br-none">${text}</div></div>`;
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/ai-teacher`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({text})
-                });
-                const data = await res.json();
-                box.innerHTML += `<div><div class="inline-block bg-slate-700 px-5 py-3 rounded-3xl rounded-bl-none">${data.response}</div></div>`;
-            } catch(e) {}
-            box.scrollTop = box.scrollHeight;
-            input.value = '';
-        }
-
-        function switchTab(n) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-            document.getElementById(['tab-flash','tab-add','tab-quiz','tab-ai','tab-stats'][n]).classList.remove('hidden');
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.nav-item')[n].classList.add('active');
-        }
-
-        window.onload = () => {
-            loadSets();
-            if (Telegram.WebApp.initDataUnsafe?.user) {
-                document.getElementById('username').textContent = Telegram.WebApp.initDataUnsafe.user.first_name;
-            }
-        };
-    </script>
+    <script src="js/telegram.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/animations.js"></script>
+    <script src="js/flashcards.js"></script>
+    <script src="js/quiz.js"></script>
+    <script src="js/aiTeacher.js"></script>
+    <script src="js/stats.js"></script>
+    <script src="js/app.js"></script>
 </body>
 </html>
+                    
