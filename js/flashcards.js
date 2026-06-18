@@ -183,7 +183,16 @@ document.addEventListener("DOMContentLoaded", () => {
         cardAi.textContent = current.ai_info || "Qo'shimcha ma'lumot yo'q.";
     }
 
-    flashcard.addEventListener("click", () => flashcard.classList.toggle("flipped"));
+            // Kartaning istalgan joyiga bossa ham to'g'ri buriladigan xavfsiz funksiya
+        if (flashcard) {
+            flashcard.addEventListener("click", (e) => {
+                // Agar tasodifan pastdagi "Bildim" yoki "Bilmadim" tugmalari bosilgan bo'lsa, burib yubormaslik uchun
+                if (e.target.closest('#btn-correct') || e.target.closest('#btn-wrong')) {
+                    return; 
+                }
+                flashcard.classList.toggle("flipped");
+            });
+        }
 
     document.getElementById("btn-correct").addEventListener("click", (e) => {
         e.stopPropagation();
