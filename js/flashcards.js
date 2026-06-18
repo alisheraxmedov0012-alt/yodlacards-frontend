@@ -1,4 +1,10 @@
 // js/flashcards.js
+
+// Agar api.js dagi o'zgaruvchi topilmasa xato bermasligi uchun xavfsizlik chorasi
+if (typeof API_BASE_URL === 'undefined') {
+    var API_BASE_URL = "http://yodlacards-ai-bot-production.up.railway.app";
+}
+
 let userSets = {};
 let tempNewSetWords = [];
 let currentCreatingSetName = "";
@@ -8,15 +14,13 @@ let activePlayIndex = 0;
 let knowCards = [];
 let dontCards = [];
 let currentSetName = "";
-let currentSessionMode = "flashcard"; // "flashcard" yoki "quiz"
+let currentSessionMode = "flashcard"; 
 
 document.addEventListener("DOMContentLoaded", async () => {
-    // Telegram WebApp foydalanuvchi ma'lumotlarini olish
     const tg = window.Telegram?.WebApp;
     const tgUser = tg?.initDataUnsafe?.user;
-    const userId = tgUser?.id || 123456789; // Agar lokalda tekshirilsa default ID
+    const userId = tgUser?.id || 123456789; 
     
-    // Profil qismida foydalanuvchining o'z ismini chiqarish
     if (tgUser) {
         const usernameEl = document.getElementById("username");
         const avatarEl = document.getElementById("user-avatar");
@@ -53,15 +57,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     const quizOptionsContainer = document.getElementById("set-quiz-options");
     const quizProgress = document.getElementById("quiz-progress-indicator");
 
-    // --- SERVERDAN FAQAT SHU FOYDALANUVCHI SETLARINI YUKLASH ---
+    // KARTANI BURISH UCHUN ENG ISHONCHLI VA MUSTAHKAM STRUKTURA
+    if (flashcard) {
+        // Eski eventlarni tozalash va faqat bitta toza event biriktirish
+        flashcard.onclick = function(e) {
+            // Agar tugmalar bosilgan bo'lsa karta aylanib ketmasligi kerak
+            if (e.target.closest('#btn-correct') || e.target.closest('#btn-wrong')) {
+                return;
+            }
+            // Klasni almashtirish (Toggle)
+            this.classList.toggle("flipped");
+        };
+    }
+
+    // --- SERVERDAN USER SETLARINI YUKLASH ---
     async function loadUserSetsFromServer() {
         try {
-            // Har bir akkaunt o'z ID si bo'yicha bazadan kartalarini oladi
             const response = await fetch(`${API_BASE_URL}/api/user/${userId}/cards`);
             if (response.ok) {
                 const cards = await response.json();
-                
-                // Kelgan kartalarni setlar (to'plamlar) bo'yicha guruhlaymiz
                 userSets = {};
                 cards.forEach(card => {
                     const setName = card.set_name || "Asosiy To'plam";
@@ -75,8 +89,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 });
             }
         } catch (error) {
-            console.error("Setlarni yuklashda xatolik:", error);
-            // Agar server o'chiq bo'lsa, har kim o'z telefonidagigini ko'radi (boshqalarnikini emas)
+            console.error("Xatolik:", error);
             userSets = JSON.parse(localStorage.getItem(`user_sets_${userId}`)) || {};
         }
         renderSetsList();
@@ -88,7 +101,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         const setNames = Object.keys(userSets);
         if (setNames.length === 0) {
-            setsList.innerHTML = `<p class="no-sets-msg" style="text-align:center; color:#64748b; margin-top:20px;">Sizda hali to'plamlar yo'q. "Yangi Set" tugmasi orqali yarating!</p>`;
+            setsList.innerHTML = `<p style="text-align:center; color:#64748b; margin-top:20px;">Sizda hali to'plamlar yo'q. "Yangi Set" tugmasi orqali yarating!</p>`;
             return;
         }
 
@@ -107,89 +120,95 @@ document.addEventListener("DOMContentLoaded", async () => {
                 </div>
             `;
             
-            block.querySelector(".card-mode").addEventListener("click", (e) => {
+            block.querySelector(".card-mode").onclick = function(e) {
                 e.stopPropagation();
                 startSession(setName, userSets[setName], "flashcard");
-            });
+            };
 
-            block.querySelector(".quiz-mode").addEventListener("click", (e) => {
+            block.querySelector(".quiz-mode").onclick = function(e) {
                 e.stopPropagation();
                 startSession(setName, userSets[setName], "quiz");
-            });
+            };
 
             setsList.appendChild(block);
         });
     }
 
     // --- YANGI SET YARATISH ---
-    document.getElementById("btn-create-set").addEventListener("click", () => {
-        setsView.classList.add("hidden-view");
-        addSetView.classList.remove("hidden-view");
-        setNameGroup.classList.remove("hidden-view");
-        wordInputsGroup.classList.add("hidden-view");
-        inputSetName.value = "";
-    });
-
-    document.getElementById("btn-confirm-set-name").addEventListener("click", () => {
-        const name = inputSetName.value.trim();
-        if(!name) return;
-        currentCreatingSetName = name;
-        currentCreatingSetLabel.textContent = name;
-        addedWordsCountLabel.textContent = "0";
-        setNameGroup.classList.add("hidden-view");
-        wordInputsGroup.classList.remove("hidden-view");
-        tempNewSetWords = [];
-    });
-
-    document.getElementById("btn-add-more-word").addEventListener("click", () => {
-        const eng = inputEng.value.trim();
-        const uzb = inputUzb.value.trim();
-        if(!eng || !uzb) return;
-
-        const wordObj = {
-            id: Date.now() + Math.random(),
-            english: eng,
-            uzbek: uzb,
-            ai_info: "Yuklanmoqda..."
+    if(document.getElementById("btn-create-set")) {
+        document.getElementById("btn-create-set").onclick = function() {
+            setsView.classList.add("hidden-view");
+            addSetView.classList.remove("hidden-view");
+            setNameGroup.classList.remove("hidden-view");
+            wordInputsGroup.classList.add("hidden-view");
+            inputSetName.value = "";
         };
+    }
 
-        tempNewSetWords.push(wordObj);
-        addedWordsCountLabel.textContent = tempNewSetWords.length;
-        inputEng.value = ""; inputUzb.value = "";
-        inputEng.focus();
-    });
+    if(document.getElementById("btn-confirm-set-name")) {
+        document.getElementById("btn-confirm-set-name").onclick = function() {
+            const name = inputSetName.value.trim();
+            if(!name) return;
+            currentCreatingSetName = name;
+            currentCreatingSetLabel.textContent = name;
+            addedWordsCountLabel.textContent = "0";
+            setNameGroup.classList.add("hidden-view");
+            wordInputsGroup.classList.remove("hidden-view");
+            tempNewSetWords = [];
+        };
+    }
 
-    document.getElementById("btn-finish-set").addEventListener("click", async () => {
-        const eng = inputEng.value.trim();
-        const uzb = inputUzb.value.trim();
-        if(eng && uzb) {
-            tempNewSetWords.push({ id: Date.now(), english: eng, uzbek: uzb, ai_info: "Qo'shildi" });
-        }
-        if(tempNewSetWords.length === 0) return;
+    if(document.getElementById("btn-add-more-word")) {
+        document.getElementById("btn-add-more-word").onclick = function() {
+            const eng = inputEng.value.trim();
+            const uzb = inputUzb.value.trim();
+            if(!eng || !uzb) return;
 
-        // Serverga saqlash (Har bir so'zni foydalanuvchining shaxsiy ID si va Set nomi bilan jo'natamiz)
-        for (let word of tempNewSetWords) {
-            try {
-                await fetch(`${API_BASE_URL}/api/flashcard/add`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        user_id: userId,
-                        set_name: currentCreatingSetName,
-                        english: word.english,
-                        uzbek: word.uzbek
-                    })
-                });
-            } catch(e){ console.error("Serverga saqlashda xato:", e); }
-        }
+            tempNewSetWords.push({
+                id: Date.now() + Math.random(),
+                english: eng,
+                uzbek: uzb,
+                ai_info: "Yuklanmoqda..."
+            });
+            
+            addedWordsCountLabel.textContent = tempNewSetWords.length;
+            inputEng.value = ""; inputUzb.value = "";
+            inputEng.focus();
+        };
+    }
 
-        userSets[currentCreatingSetName] = tempNewSetWords;
-        localStorage.setItem(`user_sets_${userId}`, JSON.stringify(userSets));
-        
-        addSetView.classList.add("hidden-view");
-        setsView.classList.remove("hidden-view");
-        await loadUserSetsFromServer();
-    });
+    if(document.getElementById("btn-finish-set")) {
+        document.getElementById("btn-finish-set").onclick = async function() {
+            const eng = inputEng.value.trim();
+            const uzb = inputUzb.value.trim();
+            if(eng && uzb) {
+                tempNewSetWords.push({ id: Date.now(), english: eng, uzbek: uzb, ai_info: "Qo'shildi" });
+            }
+            if(tempNewSetWords.length === 0) return;
+
+            for (let word of tempNewSetWords) {
+                try {
+                    await fetch(`${API_BASE_URL}/api/flashcard/add`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            user_id: userId,
+                            set_name: currentCreatingSetName,
+                            english: word.english,
+                            uzbek: word.uzbek
+                        })
+                    });
+                } catch(e){ console.error(e); }
+            }
+
+            userSets[currentCreatingSetName] = tempNewSetWords;
+            localStorage.setItem(`user_sets_${userId}`, JSON.stringify(userSets));
+            
+            addSetView.classList.add("hidden-view");
+            setsView.classList.remove("hidden-view");
+            await loadUserSetsFromServer();
+        };
+    }
 
     // --- ENGINE HANDLER ---
     function startSession(setName, cardsArray, mode) {
@@ -220,7 +239,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             finishSession();
             return;
         }
-        flashcard.classList.remove("flipped");
+        if(flashcard) flashcard.classList.remove("flipped");
         cardProgress.textContent = `${activePlayIndex + 1} / ${activePlayCards.length}`;
         const current = activePlayCards[activePlayIndex];
         cardEn.textContent = current.english;
@@ -228,30 +247,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         cardAi.textContent = current.ai_info || "Qo'shimcha ma'lumot yo'q.";
     }
 
-    if (flashcard) {
-        flashcard.addEventListener("click", (e) => {
-            if (e.target.closest('#btn-correct') || e.target.closest('#btn-wrong')) return; 
-            flashcard.classList.toggle("flipped");
-        });
-    }
-
-    document.getElementById("btn-correct").addEventListener("click", (e) => {
+    document.getElementById("btn-correct").onclick = function(e) {
         e.stopPropagation();
         knowCards.push(activePlayCards[activePlayIndex]);
-        if(typeof API !== 'undefined') API.saveCardProgress(activePlayCards[activePlayIndex].id, true);
+        if(typeof API !== 'undefined' && API.saveCardProgress) API.saveCardProgress(activePlayCards[activePlayIndex].id, true);
         activePlayIndex++;
         showFlashcard();
-    });
+    };
 
-    document.getElementById("btn-wrong").addEventListener("click", (e) => {
+    document.getElementById("btn-wrong").onclick = function(e) {
         e.stopPropagation();
         dontCards.push(activePlayCards[activePlayIndex]);
-        if(typeof API !== 'undefined') API.saveCardProgress(activePlayCards[activePlayIndex].id, false);
+        if(typeof API !== 'undefined' && API.saveCardProgress) API.saveCardProgress(activePlayCards[activePlayIndex].id, false);
         activePlayIndex++;
         showFlashcard();
-    });
+    };
 
-    // --- QUIZ (TEST) REJIMI ---
+    // --- QUIZ REJIMI ---
     function showQuizQuestion() {
         if(activePlayIndex >= activePlayCards.length) {
             finishSession();
@@ -278,7 +290,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             const btn = document.createElement("button");
             btn.className = "quiz-opt-btn";
             btn.textContent = opt;
-            btn.addEventListener("click", () => {
+            btn.onclick = function() {
                 const allBtns = quizOptionsContainer.querySelectorAll(".quiz-opt-btn");
                 allBtns.forEach(b => b.style.pointerEvents = "none");
 
@@ -299,7 +311,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                     activePlayIndex++;
                     showQuizQuestion();
                 }, 1500);
-            });
+            };
             quizOptionsContainer.appendChild(btn);
         });
     }
@@ -320,31 +332,30 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById("btn-retry-wrong").style.display = dontCards.length === 0 ? "none" : "block";
     }
 
-    document.getElementById("btn-retry-wrong").addEventListener("click", () => {
+    document.getElementById("btn-retry-wrong").onclick = function() {
         startSession(currentSetName, dontCards, currentSessionMode);
-    });
+    };
 
-    document.getElementById("btn-retry-all").addEventListener("click", () => {
+    document.getElementById("btn-retry-all").onclick = function() {
         startSession(currentSetName, userSets[currentSetName], currentSessionMode);
-    });
+    };
 
-    document.getElementById("btn-go-home-sets").addEventListener("click", () => {
+    document.getElementById("btn-go-home-sets").onclick = function() {
         resultSetView.classList.add("hidden-view");
         setsView.classList.remove("hidden-view");
         renderSetsList();
-    });
+    };
 
-    document.getElementById("btn-back-to-sets").addEventListener("click", () => {
+    document.getElementById("btn-back-to-sets").onclick = function() {
         playSetView.classList.add("hidden-view");
         setsView.classList.remove("hidden-view");
-    });
+    };
     
-    document.getElementById("btn-quiz-back-to-sets").addEventListener("click", () => {
+    document.getElementById("btn-quiz-back-to-sets").onclick = function() {
         playQuizView.classList.add("hidden-view");
         setsView.classList.remove("hidden-view");
-    });
+    };
 
-    // Dasturni ishga tushganda serverdan shaxsiy ma'lumotlarni tortish
     await loadUserSetsFromServer();
 });
         
