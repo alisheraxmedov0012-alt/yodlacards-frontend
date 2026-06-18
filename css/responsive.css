@@ -1,0 +1,17 @@
+/* css/responsive.css */
+@media (max-width: 380px) {
+    .card-wrapper { 
+        height: 280px; 
+    }
+    .card-front { 
+        font-size: 26px; 
+    }
+    .highlight-q { 
+        font-size: 22px; 
+    }
+    .btn { 
+        padding: 10px 16px; 
+        font-size: 13px; 
+    }
+}
+
