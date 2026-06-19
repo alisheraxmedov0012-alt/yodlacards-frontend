@@ -18,9 +18,9 @@ let currentSessionMode = "flashcard";
 document.addEventListener("DOMContentLoaded", async () => {
     const tg = window.Telegram?.WebApp;
     const tgUser = tg?.initDataUnsafe?.user;
-    const userId = tgUser?.id || 123456789; // Foydalanuvchi Telegram ID-si
+    const userId = tgUser?.id || 123456789; // Telegram ID yoki test ID
     
-    // Profilni shaxsiylashtirish
+    // Profil ma'lumotlari
     if (tgUser) {
         const usernameEl = document.getElementById("username");
         const avatarEl = document.getElementById("user-avatar");
@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (avatarEl && tgUser.photo_url) avatarEl.src = tgUser.photo_url;
     }
 
-    // Elements
+    // Dom elementlari
     const setsView = document.getElementById("sets-view");
     const addSetView = document.getElementById("add-set-view");
     const playSetView = document.getElementById("play-set-view");
@@ -54,7 +54,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const quizOptionsContainer = document.getElementById("set-quiz-options");
     const quizProgress = document.getElementById("quiz-progress-indicator");
 
-    // 3D KARTANI BURISH (Toza CSS trigger)
+    // 3D Kartani aylantirish
     if (flashcard) {
         flashcard.onclick = function(e) {
             if (e.target.closest('#btn-correct') || e.target.closest('#btn-wrong')) return;
@@ -62,28 +62,25 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
     }
 
-    // --- SERVERDAN FAQAT SHU FOYDALANUVCHI SETLARINI YUKLASH ---
+    // SERVERDAN FOYDALANUVCHINING SHAXSIY SETLARINI YUKLASH
     async function loadUserSetsFromServer() {
         try {
-            // Shaxsiy ID bo'yicha API chaqiramiz
-            const response = await fetch(`${API_BASE_URL}/api/user/${userId}/cards`);
+            const response = await fetch(`${API_BASE_URL}/api/user/${userId}/sets`);
             if (response.ok) {
-                const cards = await response.json();
+                const setsData = await response.json();
                 userSets = {};
-                cards.forEach(card => {
-                    const setName = card.set_name || "Asosiy To'plam";
-                    if (!userSets[setName]) userSets[setName] = [];
-                    userSets[setName].push({
-                        id: card.id,
-                        english: card.english,
-                        uzbek: card.uzbek,
-                        ai_info: card.ai_info || "YodlaCards AI ta'rifi."
-                    });
-                });
+                
+                // Har bir shaxsiy set ichidagi so'zlarni tortish
+                for (let setInfo of setsData) {
+                    const cardsRes = await fetch(`${API_BASE_URL}/api/user/${userId}/cards?set_name=${encodeURIComponent(setInfo.set_name)}`);
+                    if (cardsRes.ok) {
+                        userSets[setInfo.set_name] = await cardsRes.json();
+                    }
+                }
                 localStorage.setItem(`user_sets_${userId}`, JSON.stringify(userSets));
             }
         } catch (error) {
-            console.error("Lokal rejim yuklandi:", error);
+            console.error("Serverdan yuklashda xatolik:", error);
             userSets = JSON.parse(localStorage.getItem(`user_sets_${userId}`)) || {};
         }
         renderSetsList();
@@ -95,7 +92,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         const setNames = Object.keys(userSets);
         if (setNames.length === 0) {
-            setsList.innerHTML = `<p style="text-align:center; color:#64748b; margin-top:20px;">Sizda hali to'plamlar yo'q. "Yangi Set" tugmasi orqali yarating!</p>`;
+            setsList.innerHTML = `<p style="text-align:center; color:#64748b; margin-top:20px;">Sizda hali shaxsiy to'plamlar yo'q.</p>`;
             return;
         }
 
@@ -128,7 +125,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // --- YANGI SET YARATISH ---
+    // YANGI SET YARATISH OYNASI
     if(document.getElementById("btn-create-set")) {
         document.getElementById("btn-create-set").onclick = function() {
             setsView.classList.add("hidden-view");
@@ -159,10 +156,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             if(!eng || !uzb) return;
 
             tempNewSetWords.push({
-                id: Date.now() + Math.random(),
                 english: eng,
-                uzbek: uzb,
-                ai_info: "Yuklanmoqda..."
+                uzbek: uzb
             });
             
             addedWordsCountLabel.textContent = tempNewSetWords.length;
@@ -176,11 +171,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             const eng = inputEng.value.trim();
             const uzb = inputUzb.value.trim();
             if(eng && uzb) {
-                tempNewSetWords.push({ id: Date.now(), english: eng, uzbek: uzb, ai_info: "Qo'shildi" });
+                tempNewSetWords.push({ english: eng, uzbek: uzb });
             }
             if(tempNewSetWords.length === 0) return;
 
-            // Serverga saqlashda user_id ham yuboriladi
+            // Har bir so'zni shaxsiy userID bilan serverga yuborish
             for (let word of tempNewSetWords) {
                 try {
                     await fetch(`${API_BASE_URL}/api/flashcard/add`, {
@@ -202,7 +197,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
     }
 
-    // --- ENGINE HANDLER ---
+    // SESSION ENGINE
     function startSession(setName, cardsArray, mode) {
         currentSetName = setName;
         activePlayCards = [...cardsArray];
@@ -225,7 +220,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    // --- FLASHCARD REJIMI ---
     function showFlashcard() {
         if(activePlayIndex >= activePlayCards.length) {
             finishSession();
@@ -237,7 +231,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const current = activePlayCards[activePlayIndex];
         cardEn.textContent = current.english;
         cardUz.textContent = current.uzbek;
-        cardAi.textContent = current.ai_info || "Qo'shimcha ma'lumot yo'q.";
+        cardAi.textContent = current.ai_info || "AI ta'rifi yuklanmoqda...";
     }
 
     document.getElementById("btn-correct").onclick = function(e) {
@@ -254,7 +248,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         showFlashcard();
     };
 
-    // --- QUIZ REJIMI ---
     function showQuizQuestion() {
         if(activePlayIndex >= activePlayCards.length) {
             finishSession();
@@ -263,7 +256,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
         quizProgress.textContent = `${activePlayIndex + 1} / ${activePlayCards.length}`;
         const current = activePlayCards[activePlayIndex];
-        quizQuestionText.innerHTML = `Ushbu so'zning to'g'ri tarjimasini toping:<br><br><span class="highlight-q">🇬🇧 ${current.english}</span>`;
+        quizQuestionText.innerHTML = `Tarjimasini toping:<br><br><span class="highlight-q">🇬🇧 ${current.english}</span>`;
         quizOptionsContainer.innerHTML = "";
 
         let options = [current.uzbek];
@@ -299,13 +292,12 @@ document.addEventListener("DOMContentLoaded", async () => {
                 setTimeout(() => {
                     activePlayIndex++;
                     showQuizQuestion();
-                }, 1500);
+                }, 1200);
             };
             quizOptionsContainer.appendChild(btn);
         });
     }
 
-    // --- NATIJALAR ---
     function finishSession() {
         playSetView.classList.add("hidden-view");
         playQuizView.classList.add("hidden-view");
@@ -347,4 +339,4 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     await loadUserSetsFromServer();
 });
-                         
+                                       
