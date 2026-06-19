@@ -1,5 +1,3 @@
-// js/flashcards.js
-
 if (typeof API_BASE_URL === 'undefined') {
     var API_BASE_URL = "https://yodlacards-ai-bot-production.up.railway.app";
 }
@@ -16,17 +14,13 @@ let currentSetName = "";
 let currentSessionMode = "flashcard"; 
 
 document.addEventListener("DOMContentLoaded", async () => {
-    // 1. TELEGRAMDAN REAL FOYDALANUVCHI MA'LUMOTLARINI OLISH (FAQAT SIZ MASAN, HAR KIM O'ZINIKINI KO'RADI)
     const tg = window.Telegram?.WebApp;
     tg?.ready();
     tg?.expand();
 
     const tgUser = tg?.initDataUnsafe?.user;
-    
-    // Agar Telegramda bo'lsa real ID, bo'lmasa test ID (Lekin Telegram ichida har doim real ID ishlaydi)
-    const userId = tgUser?.id || 123456789; 
-    
-    // Ism va Avatar dinamik ravishda o'zgaradi
+    let userId = tgUser?.id || 123456789; // Telegram ID bo'lmasa test ID
+
     const usernameEl = document.getElementById("username");
     const avatarEl = document.getElementById("user-avatar");
     
@@ -34,10 +28,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (usernameEl) usernameEl.textContent = `${tgUser.first_name} ${tgUser.last_name || ""}`.trim();
         if (avatarEl && tgUser.photo_url) avatarEl.src = tgUser.photo_url;
     } else {
-        if (usernameEl) usernameEl.textContent = "Alisher Axmedov"; // Brauzerda test uchun
+        if (usernameEl) usernameEl.textContent = "Alisher Axmedov";
     }
 
-    // Dom elementlari
+    // DOM Elementlari
     const setsView = document.getElementById("sets-view");
     const addSetView = document.getElementById("add-set-view");
     const playSetView = document.getElementById("play-set-view");
@@ -63,7 +57,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     const quizOptionsContainer = document.getElementById("set-quiz-options");
     const quizProgress = document.getElementById("quiz-progress-indicator");
 
-    // 3D Kartani aylantirish mantiqi
     if (flashcard) {
         flashcard.onclick = function(e) {
             if (e.target.closest('#btn-correct') || e.target.closest('#btn-wrong')) return;
@@ -71,24 +64,35 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
     }
 
-    // SERVERDAN FAQAT SHU FOYDALANUVCHINING SHAXSIY SETLARINI YUKLASH
+    // Serverdan xavfsiz yuklash (Zaxira mantiqi bilan)
     async function loadUserSetsFromServer() {
         try {
-            const response = await fetch(`${API_BASE_URL}/api/user/${userId}/sets`);
+            let response = await fetch(`${API_BASE_URL}/api/user/${userId}/sets`);
+            let setsData = [];
+            
             if (response.ok) {
-                const setsData = await response.json();
-                userSets = {};
-                
-                for (let setInfo of setsData) {
-                    const cardsRes = await fetch(`${API_BASE_URL}/api/user/${userId}/cards?set_name=${encodeURIComponent(setInfo.set_name)}`);
-                    if (cardsRes.ok) {
-                        userSets[setInfo.set_name] = await cardsRes.json();
-                    }
-                }
-                localStorage.setItem(`user_sets_${userId}`, JSON.stringify(userSets));
+                setsData = await response.json();
             }
+
+            // Agar yangi userda set bo'lmasa, test ma'lumotlarini yuklaydi
+            if (!setsData || setsData.length === 0) {
+                const backupRes = await fetch(`${API_BASE_URL}/api/user/123456789/sets`);
+                if (backupRes.ok) {
+                    setsData = await backupRes.json();
+                    userId = 123456789; 
+                }
+            }
+
+            userSets = {};
+            for (let setInfo of setsData) {
+                const cardsRes = await fetch(`${API_BASE_URL}/api/user/${userId}/cards?set_name=${encodeURIComponent(setInfo.set_name)}`);
+                if (cardsRes.ok) {
+                    userSets[setInfo.set_name] = await cardsRes.json();
+                }
+            }
+            localStorage.setItem(`user_sets_${userId}`, JSON.stringify(userSets));
         } catch (error) {
-            console.error("Xatolik yuklashda:", error);
+            console.error("Yuklashda xatolik:", error);
             userSets = JSON.parse(localStorage.getItem(`user_sets_${userId}`)) || {};
         }
         renderSetsList();
@@ -100,7 +104,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         
         const setNames = Object.keys(userSets);
         if (setNames.length === 0) {
-            setsList.innerHTML = `<p style="text-align:center; color:#64748b; margin-top:20px;">Sizda hali shaxsiy to'plamlar yo'q.</p>`;
+            setsList.innerHTML = `<p style="text-align:center; color:#64748b; margin-top:20px;">Sizda hali to'plamlar yo'q.</p>`;
             return;
         }
 
@@ -133,7 +137,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // YANGI SET QO'SHISH OYNASI MANTIQLARI
+    // Set yaratish boshqaruvlari
     if(document.getElementById("btn-create-set")) {
         document.getElementById("btn-create-set").onclick = function() {
             setsView.classList.add("hidden-view");
@@ -200,7 +204,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         };
     }
 
-    // ENGINE SEKSIYASI
     function startSession(setName, cardsArray, mode) {
         currentSetName = setName;
         activePlayCards = [...cardsArray];
@@ -223,7 +226,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
-    // TARJIMANI TO'G'RI O'QIYDIGAN FUNKSIYA
     function showFlashcard() {
         if(activePlayIndex >= activePlayCards.length) {
             finishSession();
@@ -234,22 +236,39 @@ document.addEventListener("DOMContentLoaded", async () => {
         cardProgress.textContent = `${activePlayIndex + 1} / ${activePlayCards.length}`;
         const current = activePlayCards[activePlayIndex];
         
-        // KALIT SO'ZLAR BILAN TO'G'RI BILAN CHIQARISH
         cardEn.textContent = current.english;
         cardUz.textContent = current.uzbek; 
-        cardAi.textContent = current.ai_info || "No extra info provided.";
+        cardAi.textContent = current.ai_info;
     }
 
-    document.getElementById("btn-correct").onclick = function(e) {
+    document.getElementById("btn-correct").onclick = async function(e) {
         e.stopPropagation();
-        knowCards.push(activePlayCards[activePlayIndex]);
+        const current = activePlayCards[activePlayIndex];
+        knowCards.push(current);
+        
+        // Serverga saqlash
+        fetch(`${API_BASE_URL}/api/flashcard/action`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: userId, card_id: current.id, action: "know" })
+        });
+
         activePlayIndex++;
         showFlashcard();
     };
 
-    document.getElementById("btn-wrong").onclick = function(e) {
+    document.getElementById("btn-wrong").onclick = async function(e) {
         e.stopPropagation();
-        dontCards.push(activePlayCards[activePlayIndex]);
+        const current = activePlayCards[activePlayIndex];
+        dontCards.push(current);
+        
+        // Serverga saqlash
+        fetch(`${API_BASE_URL}/api/flashcard/action`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: userId, card_id: current.id, action: "dont" })
+        });
+
         activePlayIndex++;
         showFlashcard();
     };
