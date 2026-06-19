@@ -25,7 +25,7 @@
 .form-group { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
 .form-group input { background: rgba(30, 41, 59, 0.5); border: 1px solid var(--glass-border); border-radius: 12px; padding: 14px; color: white; font-size: 15px; outline: none; }
 
-/* 3D Card Engine Core — Yangilangan qism */
+/* 3D Card Engine Core */
 .card-wrapper { 
     perspective: 1200px; 
     margin: 25px auto; 
@@ -84,11 +84,16 @@
     z-index: 1;
 }
 
+#card-en {
+    display: block;
+}
+
 #card-uz {
-    color: #10b981;
+    color: #10b981 !important;
     font-size: 26px;
     font-weight: 700;
     margin-bottom: 10px;
+    display: none; /* Dastlab yashirin, JS burilganda ochadi */
 }
 
 #card-ai { 
@@ -99,6 +104,7 @@
     border-top: 1px solid rgba(255,255,255,0.1); 
     padding-top: 12px; 
     width: 100%; 
+    display: none; /* Dastlab yashirin, JS burilganda ochadi */
 }
 
 .card-controls { display: flex; justify-content: space-around; width: 92%; margin: 20px auto; }
