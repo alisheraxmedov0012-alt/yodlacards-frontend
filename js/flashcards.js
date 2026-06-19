@@ -1,9 +1,5 @@
 // js/flashcards.js
 
-if (typeof API_BASE_URL === 'undefined') {
-    var API_BASE_URL = "https://yodlacards-ai-bot-production.up.railway.app"; // Railway havolangiz aniq yozilgan bo'lishi shart
-}
-
 let userSets = {};
 let tempNewSetWords = [];
 let currentCreatingSetName = "";
@@ -18,26 +14,22 @@ let currentSessionMode = "flashcard";
 document.addEventListener("DOMContentLoaded", async () => {
     const tg = window.Telegram?.WebApp;
     const tgUser = tg?.initDataUnsafe?.user;
-    const userId = tgUser?.id || 123456789; // Agar lokalda ochilsa, sinov ID-si
     
-    // 1. Profil ma'lumotlarini dinamik chiqarish (Faqat kirgan odamniki ko'rinadi)
     if (tgUser) {
         const usernameEl = document.getElementById("username");
         const avatarEl = document.getElementById("user-avatar");
         if (usernameEl) usernameEl.textContent = `${tgUser.first_name} ${tgUser.last_name || ""}`.trim();
         if (avatarEl && tgUser.photo_url) avatarEl.src = tgUser.photo_url;
-    } else {
-        const usernameEl = document.getElementById("username");
-        if (usernameEl) usernameEl.textContent = "Mehmon Profili";
     }
 
-    // Elements
+    // View Elements
     const setsView = document.getElementById("sets-view");
     const addSetView = document.getElementById("add-set-view");
     const playSetView = document.getElementById("play-set-view");
     const playQuizView = document.getElementById("play-quiz-view");
     const resultSetView = document.getElementById("result-set-view");
 
+    // Form Elements
     const setsList = document.getElementById("sets-list");
     const inputSetName = document.getElementById("input-set-name");
     const setNameGroup = document.getElementById("set-name-group");
@@ -47,37 +39,45 @@ document.addEventListener("DOMContentLoaded", async () => {
     const inputEng = document.getElementById("input-eng");
     const inputUzb = document.getElementById("input-uzb");
 
+    // Play Card Elements
     const flashcard = document.getElementById("flashcard");
     const cardEn = document.getElementById("card-en");
     const cardUz = document.getElementById("card-uz");
     const cardAi = document.getElementById("card-ai");
     const cardProgress = document.getElementById("card-progress-indicator");
 
+    // Play Quiz Elements
     const quizQuestionText = document.getElementById("set-quiz-question");
     const quizOptionsContainer = document.getElementById("set-quiz-options");
     const quizProgress = document.getElementById("quiz-progress-indicator");
 
-    // 3D KARTANI BURISH ENGINE (100% Xatosiz klik mexanikasi)
+    // 🛠 KARTANING ORQA TOMONINI KO'RSATISH MEXANIZMI (ENG ISHONCHLI USUL)
     if (flashcard) {
         flashcard.onclick = function(e) {
-            if (e.target.closest('#btn-correct') || e.target.closest('#btn-wrong')) {
-                return; // Tugmalar bosilganda karta aylanib ketmaydi
-            }
+            // Tugmalar bosilsa karta aylanmaydi
+            if (e.target.closest('#btn-correct') || e.target.closest('#btn-wrong')) return;
+
             this.classList.toggle("flipped");
+
+            // AGAR KARTA AYLANSA (flipped klassi bo'lsa) MATNNI ALMASHTIRAMIZ
+            if (this.classList.contains("flipped")) {
+                cardEn.style.display = "none"; // Inglizchani yashirish
+                cardUz.style.display = "block"; // O'zbekchani ko'rsatish
+                if (cardAi) cardAi.style.display = "block";
+            } else {
+                cardEn.style.display = "block"; // Inglizchani qaytarish
+                cardUz.style.display = "none";  // O'zbekchani yashirish
+                if (cardAi) cardAi.style.display = "none";
+            }
         };
     }
 
-    // --- SEVERDAN FAQAT SHU FOYDALANUVCHI MA'LUMOTLARINI TORTISH ---
+    // --- SERVERDAN KARTALARNI YUKLASH (ESKI USUL) ---
     async function loadUserSetsFromServer() {
-        // Avval xavfsizlik uchun lokal xotiradagi shaxsiy ma'lumotlarni o'qiymiz
-        userSets = JSON.parse(localStorage.getItem(`user_sets_${userId}`)) || {};
-        
         try {
-            const response = await fetch(`${API_BASE_URL}/api/user/${userId}/cards`);
+            const response = await fetch(`${API_BASE_URL}/api/flashcards`);
             if (response.ok) {
                 const cards = await response.json();
-                
-                // Agar serverda ma'lumot bo'lsa, lokalni tozalab servernikini yozamiz (Aralashib ketmasligi uchun)
                 userSets = {};
                 cards.forEach(card => {
                     const setName = card.set_name || "Asosiy To'plam";
@@ -89,11 +89,10 @@ document.addEventListener("DOMContentLoaded", async () => {
                         ai_info: card.ai_info || "YodlaCards AI ta'rifi."
                     });
                 });
-                // Shaxsiy ID bilan lokalga ham sinxron qilamiz
-                localStorage.setItem(`user_sets_${userId}`, JSON.stringify(userSets));
             }
         } catch (error) {
-            console.error("Serverdan yuklashda xato (Lokal rejim ishga tushdi):", error);
+            console.error("Xatolik:", error);
+            userSets = JSON.parse(localStorage.getItem("user_sets")) || {};
         }
         renderSetsList();
     }
@@ -137,7 +136,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         });
     }
 
-    // --- SO'Z VA SET QO'SHISH MEXANIZMI ---
+    // --- YANGI SET YARATISH ---
     if(document.getElementById("btn-create-set")) {
         document.getElementById("btn-create-set").onclick = function() {
             setsView.classList.add("hidden-view");
@@ -171,7 +170,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 id: Date.now() + Math.random(),
                 english: eng,
                 uzbek: uzb,
-                ai_info: "AI tahlil qilmoqda..."
+                ai_info: "Yuklanmoqda..."
             });
             
             addedWordsCountLabel.textContent = tempNewSetWords.length;
@@ -189,28 +188,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             }
             if(tempNewSetWords.length === 0) return;
 
-            // Avval darhol lokal xotiraga yozamiz (Foydalanuvchi kutib qolmasligi va qotmasligi uchun)
-            if (!userSets[currentCreatingSetName]) userSets[currentCreatingSetName] = [];
-            userSets[currentCreatingSetName].push(...tempNewSetWords);
-            localStorage.setItem(`user_sets_${userId}`, JSON.stringify(userSets));
-
-            // Keyin orqa fonda serverga sinxronizatsiya qilamiz
             for (let word of tempNewSetWords) {
                 try {
                     await fetch(`${API_BASE_URL}/api/flashcard/add`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
-                            user_id: userId,
                             set_name: currentCreatingSetName,
                             english: word.english,
                             uzbek: word.uzbek
                         })
                     });
-                } catch(e){ 
-                    console.error("Serverga yuborishda uzilish, lekin lokal xotiraga saqlandi.", e); 
-                }
+                } catch(e){ console.error(e); }
             }
+
+            userSets[currentCreatingSetName] = tempNewSetWords;
+            localStorage.setItem("user_sets", JSON.stringify(userSets));
             
             addSetView.classList.add("hidden-view");
             setsView.classList.remove("hidden-view");
@@ -247,7 +240,13 @@ document.addEventListener("DOMContentLoaded", async () => {
             finishSession();
             return;
         }
-        if(flashcard) flashcard.classList.remove("flipped");
+        if(flashcard) {
+            flashcard.classList.remove("flipped");
+            cardEn.style.display = "block";  // Keyingi so'zga o'tganda inglizcha ochilsin
+            cardUz.style.display = "none";   // O'zbekcha yashirilsin
+            if (cardAi) cardAi.style.display = "none";
+        }
+        
         cardProgress.textContent = `${activePlayIndex + 1} / ${activePlayCards.length}`;
         const current = activePlayCards[activePlayIndex];
         cardEn.textContent = current.english;
@@ -360,7 +359,6 @@ document.addEventListener("DOMContentLoaded", async () => {
         setsView.classList.remove("hidden-view");
     };
 
-    // Dasturni shaxsiy ID bo'yicha ishga tushirish
     await loadUserSetsFromServer();
 });
-                        
+                
